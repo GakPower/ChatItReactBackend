@@ -22,7 +22,7 @@ const mailTransport = nodemailer.createTransport({
 	},
 });
 
-const WEBSITE_PATH = 'http://localhost:3000';
+const WEBSITE_PATH = 'https://chatit.site';
 
 router.post('/join', async (req, res) => {
 	const userData = req.body;
@@ -142,7 +142,7 @@ router.post('/forgotPass', async (req, res) => {
 	await new UUID({ uuid, email, expDate: getExpDateOfDate() }).save();
 
 	const message = {
-		from: 'gkotDev@gmail.com',
+		from: 'ChatIt <gkotDev@gmail.com>',
 		to: email,
 		subject: 'Password Reset',
 		text: `
@@ -181,7 +181,6 @@ ChatIt 2020 All rights reserved
 				margin: 0;
 			}
 		</style>
-		
 	
 	</head>
 	
