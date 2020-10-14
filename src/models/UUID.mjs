@@ -9,6 +9,10 @@ const schema = new Mongoose.Schema({
 		type: String,
 		required: true,
 	},
+	expDate: {
+		type: Date,
+		required: true,
+	},
 });
 
 export const UUID = Mongoose.model('UUID', schema);
