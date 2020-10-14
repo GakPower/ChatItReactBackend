@@ -7,6 +7,9 @@ import jwt from 'jsonwebtoken';
 import uuidLib from 'uuid';
 import { UUID } from '../models/UUID.mjs';
 import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const router = Express.Router();
 
@@ -122,6 +125,12 @@ const refreshAccessToken = async (token) => {
 	}
 };
 
+const getExpDateOfDate = (date) => {
+	const expDate = date || new Date();
+	expDate.setTime(expDate.getTime() + 1800000); // 30mins
+	return expDate;
+};
+
 router.post('/forgotPass', async (req, res) => {
 	const email = req.body.email;
 	if (!email) return res.send({});
@@ -130,7 +139,7 @@ router.post('/forgotPass', async (req, res) => {
 	if (!user) return res.send({});
 
 	const uuid = uuidLib.v4();
-	await new UUID({ uuid, email }).save();
+	await new UUID({ uuid, email, expDate: getExpDateOfDate() }).save();
 
 	const message = {
 		from: 'gkotDev@gmail.com',
@@ -143,6 +152,8 @@ It appears you requested a password reset.
 
 Follow the link below to reset your password:
 ${WEBSITE_PATH}/resetPassword/${uuid}
+
+This link will only be valid for the next 30 minutes.
 
 If you did not make that request, you can ignore this email.
 
@@ -183,7 +194,9 @@ ChatIt 2020 All rights reserved
 	<tr><p style="margin-top: 10px;">Click on the button below to reset your password:</p></tr>
 	<tr align="center" bgcolor="#ff8966" height="80" width="200"><td aline="center"><a style="color: white; text-decoration:none;" href="${WEBSITE_PATH}/resetPassword/${uuid}" target="_blank">Reset Your Password</a></td></tr>
 	<tr><p style="margin-top: 10px; font-size: 12px">Or follow the link below to reset your password:</p></tr>
-	<tr><a style="font-size: 12px" href="${WEBSITE_PATH}/resetPassword/${uuid}">${WEBSITE_PATH}/resetPassword/${uuid}</a></tr>
+	<tr><a href="${WEBSITE_PATH}/resetPassword/${uuid}">${WEBSITE_PATH}/resetPassword/${uuid}</a></tr>
+
+	<tr><p style="margin-top: 20px;>This link will only be valid for the next 30 minutes.</p></tr>
 	
 	<tr><p style="margin-top: 20px; font-size: 12px">If you did not make that request, you can ignore this email.</p></tr>
 
@@ -217,7 +230,10 @@ router.post('/updatePassword', async (req, res) => {
 	}
 
 	const uuidInfo = await UUID.findOne({ uuid: id });
-	if (!uuidInfo) return res.send({ message: '' });
+	if (!uuidInfo)
+		return res.send({
+			message: 'Your password reset request has expired. Please try again.',
+		});
 
 	const salt = await bcrypt.genSalt(10);
 	const hashedPass = await bcrypt.hash(newPassword, salt);
@@ -235,6 +251,14 @@ router.post('/updatePassword', async (req, res) => {
 		});
 	}
 });
+
+const removeExpiredUUIDs = async () => {
+	await UUID.deleteMany().where('expDate').lt(new Date());
+};
+setInterval(() => {
+	removeExpiredUUIDs();
+	console.log('RUN');
+}, 60000);
 
 // const clearDB = () => {
 // 	User.deleteMany({}, (error, info) => console.log());
