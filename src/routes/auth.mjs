@@ -257,7 +257,6 @@ const removeExpiredUUIDs = async () => {
 };
 setInterval(() => {
 	removeExpiredUUIDs();
-	console.log('RUN');
 }, 60000);
 
 // const clearDB = () => {
