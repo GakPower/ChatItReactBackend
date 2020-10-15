@@ -31,8 +31,14 @@ router.post('/join', async (req, res) => {
 		const salt = await bcrypt.genSalt(10);
 		const hashedPass = await bcrypt.hash(userData.password, salt);
 		try {
-			await new User({ ...userData, password: hashedPass }).save();
-			res.send({ valid: true });
+			const user = await new User({ ...userData, password: hashedPass }).save();
+			const accessToken = generateAccessToken(user.id);
+			const refreshToken = jwt.sign(
+				{ id: user.id },
+				process.env.REFRESH_TOKEN_SECRET
+			);
+			await new RefreshToken({ accessToken, refreshToken }).save();
+			res.send({ valid: true, token: accessToken });
 		} catch (error) {
 			res.send({ message: 'A database error has happened. Try again' });
 		}
@@ -63,8 +69,12 @@ router.post('/login', async (req, res) => {
 });
 
 router.delete('/logout', async (req, res) => {
-	await RefreshToken.deleteOne({ token: req.body.token });
-	res.send({ done: true });
+	try {
+		await RefreshToken.deleteOne({ token: req.body.token });
+		res.send({ done: true });
+	} catch (error) {
+		res.send({});
+	}
 });
 
 const authenticateToken = (req, res, next) => {
@@ -95,6 +105,21 @@ const authenticateToken = (req, res, next) => {
 	});
 };
 
+router.post('/isTokenValid', async (req, res) => {
+	const token = req.body.token;
+	if (!token) return res.send({});
+
+	const accessToken = await RefreshToken.findOne({ accessToken: token });
+	if (!accessToken) return res.send({});
+
+	jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, async (error, user) => {
+		if (error) {
+			return res.send({});
+		}
+		return res.send({ valid: true });
+	});
+});
+
 router.get('/posts', authenticateToken, async (req, res) => {
 	const array = [
 		{ name: 'GakPower', film: 'Avengers' },
@@ -105,6 +130,14 @@ router.get('/posts', authenticateToken, async (req, res) => {
 		valid: true,
 		data: array.filter(({ name }) => name === user.username),
 	});
+});
+
+router.post('/refreshToken', async (req, res) => {
+	const token = req.body.token;
+	if (!token) return res.send({});
+
+	const { valid, accessToken } = await refreshAccessToken(token);
+	res.send({ valid, token: accessToken });
 });
 
 const refreshAccessToken = async (token) => {
