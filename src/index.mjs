@@ -2,6 +2,9 @@ import Express from 'express';
 import Mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.mjs';
+import appRoutes from './routes/app.mjs';
+import socketIO from 'socket.io';
+import httpServer from 'http';
 
 dotenv.config();
 
@@ -10,6 +13,7 @@ Mongoose.connect(process.env.DB_CONNECT, { useUnifiedTopology: true }, () =>
 );
 
 const app = Express();
+const http = httpServer.createServer(app);
 
 app.use(Express.json());
 
@@ -27,5 +31,15 @@ app.use((req, res, next) => {
 	next();
 });
 app.use('/api/auth', authRoutes);
+app.use('/api/app', appRoutes);
 
-app.listen(5000, () => console.log('Server is running'));
+const io = socketIO(http);
+io.on('connection', (socket) => {
+	console.log('a user');
+
+	socket.on('message', (data) => {
+		socket.broadcast.emit('message', data);
+	});
+});
+
+http.listen(5000, () => console.log('Server is running'));
