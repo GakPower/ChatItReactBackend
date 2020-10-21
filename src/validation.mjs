@@ -53,7 +53,7 @@ export const validateLogin = async (userData, emailLogin) => {
 	}
 
 	const validPass = await bcrypt.compare(userData.password, user.password);
-	return { valid: validPass, id: user._id };
+	return { valid: validPass, id: user._id, username: user.username };
 };
 
 export const validatePass = async (newPassword) => {
