@@ -57,12 +57,12 @@ const generateAccessToken = (id) => {
 
 router.post('/login', async (req, res) => {
 	const { emailLogin, ...userData } = req.body;
-	const { valid, id } = await validateLogin(userData, emailLogin);
+	const { valid, id, username } = await validateLogin(userData, emailLogin);
 	if (valid) {
 		const accessToken = generateAccessToken(id);
 		const refreshToken = jwt.sign({ id }, process.env.REFRESH_TOKEN_SECRET);
 		await new RefreshToken({ accessToken, refreshToken }).save();
-		res.send({ valid, token: accessToken });
+		res.send({ valid, token: accessToken, username });
 	} else {
 		res.send({
 			message: 'Incorrect Email/Username or password',
@@ -114,11 +114,12 @@ router.post('/isTokenValid', async (req, res) => {
 	const accessToken = await RefreshToken.findOne({ accessToken: token });
 	if (!accessToken) return res.send({});
 
-	jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, async (error, user) => {
+	jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, async (error, userID) => {
 		if (error) {
 			return res.send({});
 		}
-		return res.send({ valid: true });
+		const user = await User.findOne({ _id: userID.id });
+		return res.send({ valid: true, username: user.username });
 	});
 });
 
@@ -293,22 +294,22 @@ setInterval(() => {
 	removeExpiredUUIDs();
 }, 60000);
 
-router.post('/getGoogleAuthLink', (req, res) => {
-	const stringifiedParams = queryString.stringify({
-		client_id: process.env.GOOGLE_CLIENT_ID,
-		redirect_uri: 'https://chatit.site/authenticate/google',
-		scope: [
-			'https://www.googleapis.com/auth/userinfo.email',
-			'https://www.googleapis.com/auth/userinfo.profile',
-		].join(' '),
-		response_type: 'code',
-		access_type: 'offline',
-		prompt: 'consent',
-	});
+// router.post('/getGoogleAuthLink', (req, res) => {
+// 	const stringifiedParams = queryString.stringify({
+// 		client_id: process.env.GOOGLE_CLIENT_ID,
+// 		redirect_uri: 'https://chatit.site/authenticate/google',
+// 		scope: [
+// 			'https://www.googleapis.com/auth/userinfo.email',
+// 			'https://www.googleapis.com/auth/userinfo.profile',
+// 		].join(' '),
+// 		response_type: 'code',
+// 		access_type: 'offline',
+// 		prompt: 'consent',
+// 	});
 
-	const googleLoginUrl = `https://accounts.google.com/o/oauth2/v2/auth?${stringifiedParams}`;
-	return res.send({ link: googleLoginUrl });
-});
+// 	const googleLoginUrl = `https://accounts.google.com/o/oauth2/v2/auth?${stringifiedParams}`;
+// 	return res.send({ link: googleLoginUrl });
+// });
 
 /** STEPS
  * GET URL
@@ -317,27 +318,27 @@ router.post('/getGoogleAuthLink', (req, res) => {
  * SAVE TOKEN TO DB WITH REFRESHTOKEN 'GOOGLE'
  * SAVE TOKEN TO COOKIES
  */
-router.get('/authenticateGoogle', async (req, res) => {
-	console.log(req);
-});
-router.post('/getGoogleToken', async (req, res) => {
-	const code = req.body.code;
-	if (!code) return res.send({});
+// router.get('/authenticateGoogle', async (req, res) => {
+// 	console.log(req);
+// });
+// router.post('/getGoogleToken', async (req, res) => {
+// 	const code = req.body.code;
+// 	if (!code) return res.send({});
 
-	const { data } = await fetch({
-		url: `https://oauth2.googleapis.com/token`,
-		method: 'post',
-		data: {
-			client_id: process.env.GOOGLE_CLIENT_ID,
-			client_secret: process.env.GOOGLE_CLIENT_SECRET,
-			redirect_uri: 'https://www.example.com/authenticate/google',
-			grant_type: 'authorization_code',
-			code,
-		},
-	});
-	console.log(data); // { access_token, expires_in, token_type, refresh_token }
-	return res.send({ valid: true, token: data.access_token });
-});
+// 	const { data } = await fetch({
+// 		url: `https://oauth2.googleapis.com/token`,
+// 		method: 'post',
+// 		data: {
+// 			client_id: process.env.GOOGLE_CLIENT_ID,
+// 			client_secret: process.env.GOOGLE_CLIENT_SECRET,
+// 			redirect_uri: 'https://www.example.com/authenticate/google',
+// 			grant_type: 'authorization_code',
+// 			code,
+// 		},
+// 	});
+// 	console.log(data); // { access_token, expires_in, token_type, refresh_token }
+// 	return res.send({ valid: true, token: data.access_token });
+// });
 
 // const clearDB = () => {
 // 	User.deleteMany({}, (error, info) => console.log());
