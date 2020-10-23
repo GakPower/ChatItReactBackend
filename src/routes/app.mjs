@@ -15,7 +15,6 @@ const getAllEmojis = () => {
 			const readyList = list
 				.map((emoji) => {
 					const value = emoji.codePoint.split(' ').map((part) => `0x${part}`);
-					console.log(value);
 					try {
 						return String.fromCodePoint(...value);
 					} catch (error) {}
