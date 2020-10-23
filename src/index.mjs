@@ -35,8 +35,6 @@ app.use('/api/app', appRoutes);
 
 const io = socketIO(http);
 io.on('connection', (socket) => {
-	console.log('a user');
-
 	socket.on('message', (data) => {
 		socket.broadcast.emit('message', data);
 	});
