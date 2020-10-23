@@ -8,8 +8,7 @@ import uuidLib from 'uuid';
 import { UUID } from '../models/UUID.mjs';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
-import * as queryString from 'query-string';
-import fetch from 'node-fetch';
+// import * as queryString from 'query-string';
 
 dotenv.config();
 
@@ -24,7 +23,13 @@ const mailTransport = nodemailer.createTransport({
 	},
 });
 
-const WEBSITE_PATH = 'https://chatit.site';
+const WEBSITE_PATH = 'http://localhost:3000';
+
+const generateAccessToken = (id) => {
+	return jwt.sign({ id }, process.env.ACCESS_TOKEN_SECRET, {
+		expiresIn: '20m',
+	});
+};
 
 router.post('/join', async (req, res) => {
 	const userData = req.body;
@@ -49,12 +54,6 @@ router.post('/join', async (req, res) => {
 	}
 });
 
-const generateAccessToken = (id) => {
-	return jwt.sign({ id }, process.env.ACCESS_TOKEN_SECRET, {
-		expiresIn: '30s',
-	});
-};
-
 router.post('/login', async (req, res) => {
 	const { emailLogin, ...userData } = req.body;
 	const { valid, id, username } = await validateLogin(userData, emailLogin);
@@ -68,79 +67,6 @@ router.post('/login', async (req, res) => {
 			message: 'Incorrect Email/Username or password',
 		});
 	}
-});
-
-router.delete('/logout', async (req, res) => {
-	try {
-		await RefreshToken.deleteOne({ token: req.body.token });
-		res.send({ done: true });
-	} catch (error) {
-		res.send({});
-	}
-});
-
-const authenticateToken = (req, res, next) => {
-	const authHeader = req.headers.authorization;
-	const token = authHeader && authHeader.split(' ')[1];
-
-	if (!token) return res.send('Access Denied. Token not found');
-
-	jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, async (error, user) => {
-		if (error) {
-			if (error.name === 'TokenExpiredError') {
-				const { valid, accessToken, message } = await refreshAccessToken(token);
-
-				if (valid) {
-					return res.send({ expired: true, token: accessToken });
-				} else {
-					return res.send({ message });
-				}
-			} else {
-				return res.send({
-					message: 'Unknown authentication error. Please login again',
-				});
-			}
-		}
-
-		req.userID = user.id;
-		next();
-	});
-};
-
-router.post('/isTokenValid', async (req, res) => {
-	const token = req.body.token;
-	if (!token) return res.send({});
-
-	const accessToken = await RefreshToken.findOne({ accessToken: token });
-	if (!accessToken) return res.send({});
-
-	jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, async (error, userID) => {
-		if (error) {
-			return res.send({});
-		}
-		const user = await User.findOne({ _id: userID.id });
-		return res.send({ valid: true, username: user.username });
-	});
-});
-
-router.get('/posts', authenticateToken, async (req, res) => {
-	const array = [
-		{ name: 'GakPower', film: 'Avengers' },
-		{ name: 'finalTest', film: 'Avengers Endgame' },
-	];
-	const user = await User.findOne({ _id: req.userID });
-	res.send({
-		valid: true,
-		data: array.filter(({ name }) => name === user.username),
-	});
-});
-
-router.post('/refreshToken', async (req, res) => {
-	const token = req.body.token;
-	if (!token) return res.send({});
-
-	const { valid, accessToken } = await refreshAccessToken(token);
-	res.send({ valid, token: accessToken });
 });
 
 const refreshAccessToken = async (token) => {
@@ -161,11 +87,79 @@ const refreshAccessToken = async (token) => {
 	}
 };
 
+// const authenticateToken = (req, res, next) => {
+// 	const authHeader = req.headers.authorization;
+// 	const token = authHeader && authHeader.split(' ')[1];
+
+// 	if (!token) return res.send('Access Denied. Token not found');
+
+// 	jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, async (error, user) => {
+// 		if (error) {
+// 			if (error.name === 'TokenExpiredError') {
+// 				const { valid, accessToken, message } = await refreshAccessToken(token);
+
+// 				if (valid) {
+// 					return res.send({ expired: true, token: accessToken });
+// 				} else {
+// 					return res.send({ message });
+// 				}
+// 			} else {
+// 				return res.send({
+// 					message: 'Unknown authentication error. Please login again',
+// 				});
+// 			}
+// 		}
+
+// 		req.userID = user.id;
+// 		next();
+// 	});
+// };
+
+router.post('/isTokenValid', async (req, res) => {
+	const token = req.body.token;
+	if (!token) return res.send({});
+
+	const accessToken = await RefreshToken.findOne({ accessToken: token });
+	if (!accessToken) return res.send({});
+
+	jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, async (error, userID) => {
+		if (error) {
+			return res.send({});
+		}
+		const user = await User.findOne({ _id: userID.id });
+		return res.send({ valid: true, username: user.username });
+	});
+});
+
+router.post('/refreshToken', async (req, res) => {
+	const token = req.body.token;
+	if (!token) return res.send({});
+
+	const { valid, accessToken } = await refreshAccessToken(token);
+	res.send({ valid, token: accessToken });
+});
+
+router.delete('/logout', async (req, res) => {
+	try {
+		await RefreshToken.deleteOne({ token: req.body.token });
+		res.send({ done: true });
+	} catch (error) {
+		res.send({});
+	}
+});
+
 const getExpDateOfDate = (date) => {
 	const expDate = date || new Date();
-	expDate.setTime(expDate.getTime() + 1800000); // 30mins
+	expDate.setTime(expDate.getTime() + 1200000); // 20mins
 	return expDate;
 };
+
+const removeExpiredUUIDs = async () => {
+	await UUID.deleteMany().where('expDate').lt(new Date());
+};
+setInterval(() => {
+	removeExpiredUUIDs();
+}, 60000);
 
 router.post('/forgotPass', async (req, res) => {
 	const email = req.body.email;
@@ -243,7 +237,7 @@ ChatIt 2020 All rights reserved
 	</body>
 		`,
 	};
-	mailTransport.sendMail(message, (error, info) => console.log(error, info));
+	mailTransport.sendMail(message);
 
 	return res.send({});
 });
@@ -286,13 +280,6 @@ router.post('/updatePassword', async (req, res) => {
 		});
 	}
 });
-
-const removeExpiredUUIDs = async () => {
-	await UUID.deleteMany().where('expDate').lt(new Date());
-};
-setInterval(() => {
-	removeExpiredUUIDs();
-}, 60000);
 
 // router.post('/getGoogleAuthLink', (req, res) => {
 // 	const stringifiedParams = queryString.stringify({
