@@ -30,8 +30,8 @@ app.use((req, res, next) => {
 	);
 	next();
 });
-app.use('/api/auth', authRoutes);
-app.use('/api/app', appRoutes);
+app.use('/auth', authRoutes);
+app.use('/app', appRoutes);
 
 const io = socketIO(http);
 io.on('connection', (socket) => {
