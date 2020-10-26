@@ -23,7 +23,7 @@ const mailTransport = nodemailer.createTransport({
 	},
 });
 
-const WEBSITE_PATH = 'http://localhost:3000';
+const WEBSITE_PATH = 'https://chatit.site';
 
 const generateAccessToken = (id) => {
 	return jwt.sign({ id }, process.env.ACCESS_TOKEN_SECRET, {
