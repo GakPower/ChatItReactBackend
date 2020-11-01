@@ -69,6 +69,23 @@ router.post('/login', async (req, res) => {
 	}
 });
 
+router.post('/loginGuest', async (req, res) => {
+	const { username } = req.body;
+	const userExists = await User.findOne({ username });
+	if (userExists) {
+		res.send({ message: 'Username already in use. Please try again' });
+	} else {
+		const user = await User({ username }).save();
+		const accessToken = generateAccessToken(user._id);
+		const refreshToken = jwt.sign(
+			{ id: user._id },
+			process.env.REFRESH_TOKEN_SECRET
+		);
+		await new RefreshToken({ accessToken, refreshToken }).save();
+		res.send({ valid: true, token: accessToken, username });
+	}
+});
+
 const refreshAccessToken = async (token) => {
 	const doc = await RefreshToken.findOne({ accessToken: token });
 	if (!doc) {
