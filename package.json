@@ -4,7 +4,8 @@
   "main": "./src/index.mjs",
   "license": "MIT",
   "scripts": {
-    "start": "nodemon -r esm ."
+    "start": "nodemon -r esm .",
+    "serve": "yarn && yarn add jsonwebtoken uuid && node -r esm ."
   },
   "type": "module",
   "dependencies": {
