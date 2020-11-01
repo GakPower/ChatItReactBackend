@@ -8,12 +8,10 @@ const userSchema = new Mongoose.Schema({
 	},
 	email: {
 		type: String,
-		required: true,
 		maxlength: 255,
 	},
 	password: {
 		type: String,
-		required: true,
 		maxlength: 1024,
 	},
 	date: {
