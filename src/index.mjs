@@ -5,6 +5,7 @@ import authRoutes from './routes/auth.mjs';
 import appRoutes from './routes/app.mjs';
 import socketIO from 'socket.io';
 import https from 'https';
+import http from 'http';
 import fs from 'fs';
 import path from 'path';
 
@@ -48,13 +49,23 @@ const httpsServer = https.createServer(
 	},
 	app
 );
+const httpServer = http.createServer(app);
 
 httpsServer.listen(443, () => {
 	console.log('HTTPS Server running on port 443');
 });
+httpServer.listen(80, () => {
+	console.log('HTTPS Server running on port 80');
+});
 
-const io = socketIO.listen(httpsServer);
+const io = socketIO.listen(httpServer);
 io.sockets.on('connection', (socket) => {
+	socket.on('message', (data) => {
+		socket.broadcast.emit('message', data);
+	});
+});
+const httpsIO = socketIO.listen(httpsServer);
+httpsIO.sockets.on('connection', (socket) => {
 	socket.on('message', (data) => {
 		socket.broadcast.emit('message', data);
 	});
